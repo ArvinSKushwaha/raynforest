@@ -1,32 +1,80 @@
 env:
+  CARGO_INCREMENTAL: false
   CARGO_TERM_COLOR: always
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     steps:
-      # FIXME: Need to install appropriate backends for macos-latest and ubuntu-latest.
-      # Currently only windows builds passing from the get-go.
       - uses: actions/checkout@v3
+
       - name: Install Rust version ${{ matrix.rust }}
         uses: actions-rs/toolchain@v1
         with:
           override: true
           toolchain: ${{ matrix.rust }}
-      - name: Build
-        run: cargo build --verbose
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.2.1
+
+        # https://github.com/gfx-rs/wgpu/blob/110e62aed255777ac635a504ec81029483065be8/.github/workflows/ci.yml#L216
+      - if: matrix.os == 'ubuntu-latest'
+        name: Install SwiftShader 
+        run: |
+          set -e
+
+          mkdir -p swiftshader
+          curl -LsSf https://github.com/gfx-rs/ci-build/releases/latest/download/swiftshader-linux-x86_64.tar.xz | tar -xf - -C swiftshader
+          echo "LD_LIBRARY_PATH=$PWD/swiftshader" >> $GITHUB_ENV
+        shell: bash
+
+      - if: matrix.os == 'ubuntu-latest'
+        name: Install LLVMpipe, Vulkan SDK
+        run: |
+          set -e
+          sudo apt-get update -y -qq
+          # vulkan sdk
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo apt-get update
+          sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev vulkan-sdk
+        shell: bash
+
+      - name: Run wgpu-info
+        run: |
+          set -e
+          cargo llvm-cov --no-cfg-coverage run --bin wgpu-info --no-report
+        shell: bash
+
       - name: Run tests
-        run: cargo test --verbose
+        run: |
+          set -e
+          for backend in ${{ matrix.backends }}; do
+            echo "======= NATIVE TESTS $backend ======";
+            WGPU_BACKEND=$backend cargo llvm-cov --no-cfg-coverage nextest -p wgpu -p wgpu-types -p wgpu-hal -p wgpu-core -p player --no-fail-fast --no-report
+          done
+        shell: bash
+
+      - name: Generate coverage report
+        run: |
+          set -e
+          cargo llvm-cov report --lcov --output-path lcov.info
+        shell: bash
+
+      - name: Upload coverage report to codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: lcov.info
 
     strategy:
       fail-fast: false
       matrix:
-        # TODO: Potentially add different backends to the matrix?
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        rust:
-          - stable
-          - beta
-          - nightly
-          - 1.65.0 # MSRV
+        include:
+          - backends: dx12
+            os: windows-latest
+          - backends: vulkan gl
+            os: ubuntu-latest
+        os: [ubuntu-latest, windows-latest]
+        rust: [stable, beta, nightly, 1.65.0]
 
 name: Rust
 on: [push, pull_request]
