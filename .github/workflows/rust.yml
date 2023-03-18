@@ -13,6 +13,11 @@ jobs:
           override: true
           toolchain: ${{ matrix.rust }}
 
+      - name: Install cargo-nextest and cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest,cargo-llvm-cov
+
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.2.1
 
