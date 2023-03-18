@@ -44,12 +44,6 @@ jobs:
           sudo apt install -y libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev vulkan-sdk
         shell: bash
 
-      - name: Run wgpu-info
-        run: |
-          set -e
-          cargo llvm-cov --no-cfg-coverage run --bin wgpu-info --no-report
-        shell: bash
-
       - name: Run tests
         run: |
           set -e
