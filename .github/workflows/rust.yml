@@ -1,15 +1,26 @@
-name: Rust
-
-on: [push, pull_request]
-
 env:
   CARGO_TERM_COLOR: always
-
 jobs:
   build:
+    runs-on: ${{ matrix.os }}
+    steps:
+      # FIXME: Need to install appropriate backends for macos-latest and ubuntu-latest.
+      # Currently only windows builds passing from the get-go.
+      - uses: actions/checkout@v3
+      - name: Install Rust version ${{ matrix.rust }}
+        uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          toolchain: ${{ matrix.rust }}
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose
+
     strategy:
       fail-fast: false
       matrix:
+        # TODO: Potentially add different backends to the matrix?
         os: [ubuntu-latest, macos-latest, windows-latest]
         rust:
           - stable
@@ -17,16 +28,5 @@ jobs:
           - nightly
           - 1.65.0 # MSRV
 
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust version ${{ matrix.rust }}
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - name: Build
-        run: cargo build --verbose
-      - name: Run tests
-        run: cargo test --verbose
+name: Rust
+on: [push, pull_request]
