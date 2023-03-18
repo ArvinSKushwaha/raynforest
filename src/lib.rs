@@ -1,8 +1,6 @@
-// TODO: Remove this, temporary to reduce visual noise.
-#![allow(dead_code)]
+#![allow(dead_code)] // TODO: Remove this when project is in a more stable state. It exists just to reduce visual noise.
 
 pub mod array;
 pub mod indexing;
-pub mod buffers;
-pub mod context;
 pub mod initialization;
+pub(crate) mod backend;

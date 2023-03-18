@@ -10,7 +10,7 @@ struct Matrix {
 @group(0) @binding(2) var<storage, read_write> resultMatrix: Matrix;
 
 @compute @workgroup_size(8, 8)
-fn main(@builtin(global_invocation_id) global_id: vec3u) {
+fn add(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (global_id.x >= u32(firstMatrix.size.x) || global_id.y >= u32(secondMatrix.size.x)) {
         return;
     }

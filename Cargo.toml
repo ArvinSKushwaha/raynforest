@@ -13,5 +13,5 @@ env_logger = "0.10"
 once_cell = "1.17"
 parking_lot = { version = "0.12", features = ["deadlock_detection"] }
 smol = "1.3"
-flume = "0.10"
 thiserror = "1.0"
+futures-channel = "0.3"
