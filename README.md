@@ -1,7 +1,5 @@
 # Arraynforest
 
-----
-
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/ArvinSKushwaha/arraynforest/rust.yml?style=for-the-badge) ![Codecov](https://img.shields.io/codecov/c/gh/ArvinSKushwaha/arraynforest?style=for-the-badge) ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/ArvinSKushwaha/arraynforest/audit.yml?label=SEC-ADUIT&style=for-the-badge)
 
 I'd like to preface this with an apology for the horrendous name. Now, with that out of the way, `arraynforest` is a
