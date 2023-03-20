@@ -2,9 +2,8 @@
 
 ![GitHub Workflow Status][1] ![Codecov][2] ![GitHub Workflow Status][3]
 
-`Raynforest` is a [gfx-rs/wgpu](https://github.com/gfx-rs/
-wgpu)-based library that provides GPU-accelerated linear algebra routines (using
-WebGPU).
+`Raynforest` is a [gfx-rs/wgpu](https://github.com/gfx-rs/wgpu)-based library
+that provides GPU-accelerated linear algebra routines (using WebGPU).
 
 I'm by no means an expert on WebGPU, or GPUs themselves for that matter, so this
 project is mostly a project for me to learn, but if enough people are interested,
