@@ -1,20 +1,22 @@
-use bytemuck::{try_cast_slice, try_cast_slice_mut};
-use futures_channel::oneshot;
-use std::ops::{Deref, DerefMut};
+use bytemuck::{try_cast_slice, PodCastError};
 use std::{marker::PhantomData, ops::RangeBounds};
 use wgpu::util::DeviceExt;
 use wgpu::BufferDescriptor;
 
 use wgpu::util::BufferInitDescriptor;
 
+use super::util::materialize;
 use super::{device::Context, traits::BufferType};
 
-#[derive(Debug, Copy, Clone)]
-pub struct CopyInfo {
-    first_start: u64,
-    second_start: u64,
-    size: u64,
-}
+mod err;
+mod slice;
+mod view;
+
+pub use self::{
+    err::{BufferCopyError, BufferMappingError},
+    slice::BufferSlice,
+    view::{BufferView, BufferViewMut}
+};
 
 #[derive(Debug)]
 pub struct Buffer<T: BufferType> {
@@ -65,35 +67,59 @@ impl<T: BufferType> Buffer<T> {
         }
     }
 
-    pub fn copy_to(&self, context: &Context, buffer: &Buffer<T>, copy_specs: CopyInfo) {
-        self.try_copy_to(context, buffer, copy_specs).unwrap();
-    }
-
-    pub fn try_copy_to(
+    pub fn copy_to<A, B>(
         &self,
         context: &Context,
-        buffer: &Buffer<T>,
-        copy_specs: CopyInfo,
-    ) -> Option<()> {
-        if !self.usage.contains(wgpu::BufferUsages::COPY_SRC)
-            && !buffer.usage.contains(wgpu::BufferUsages::COPY_DST)
-        {
-            return None;
+        src_range: A,
+        buffer: &mut Buffer<T>,
+        dst_range: B,
+    ) where
+        A: RangeBounds<usize> + std::fmt::Debug + std::marker::Copy,
+        B: RangeBounds<usize> + std::fmt::Debug + std::marker::Copy,
+    {
+        let copy_to_result = self.try_copy_to(context, src_range, buffer, dst_range);
+        if let Err(e) = &copy_to_result {
+            log::error!("Failed at Buffer::copy_to: {:?}", e);
+        }
+
+        copy_to_result.unwrap();
+    }
+
+    pub fn try_copy_to<A, B>(
+        &self,
+        context: &Context,
+        src_range: A,
+        buffer: &mut Buffer<T>,
+        dst_range: B,
+    ) -> Result<(), BufferCopyError<A, B>>
+    where
+        A: RangeBounds<usize> + std::marker::Copy,
+        B: RangeBounds<usize> + std::marker::Copy,
+    {
+        if !self.usage.contains(wgpu::BufferUsages::COPY_SRC) {
+            return Err(BufferCopyError::InvalidSourceBuffer(self.usage));
+        }
+
+        if !buffer.usage.contains(wgpu::BufferUsages::COPY_DST) {
+            return Err(BufferCopyError::InvalidDestinationBuffer(self.usage));
+        }
+
+        let src_bound = materialize(src_range, self);
+        let dst_bound = materialize(dst_range, self);
+
+        if src_bound.len() != dst_bound.len() {
+            return Err(BufferCopyError::UnequalReferenceLengths(
+                src_range, dst_range,
+            ));
         }
 
         let mut command_encoder = context.command_encoder();
-        let CopyInfo {
-            first_start,
-            second_start,
-            size,
-        } = copy_specs;
-
         command_encoder.copy_buffer_to_buffer(
             &self.buffer,
-            first_start,
+            src_bound.start() as u64,
             &buffer.buffer,
-            second_start,
-            size,
+            dst_bound.start() as u64,
+            src_bound.len() as u64,
         );
         let command_buffer = command_encoder.finish();
 
@@ -102,129 +128,41 @@ impl<T: BufferType> Buffer<T> {
             .device()
             .poll(wgpu::MaintainBase::WaitForSubmissionIndex(idx));
 
-        Some(())
+        Ok(())
+    }
+
+    pub fn try_queue_buffer_write(
+        &self,
+        context: &Context,
+        position: u64,
+        data: &[T],
+    ) -> Result<(), PodCastError> {
+        context
+            .queue()
+            .write_buffer(&self.buffer, position, try_cast_slice(data)?);
+        Ok(())
+    }
+
+    pub fn queue_buffer_write(&self, context: &Context, position: u64, data: &[T]) {
+        let queue_buffer_write_result = self.try_queue_buffer_write(context, position, data);
+
+        if let Err(e) = &queue_buffer_write_result {
+            log::error!("Failed to queue buffer write result: {}", e);
+        }
+        queue_buffer_write_result.unwrap();
     }
 
     pub fn unmap(&mut self) {
         self.buffer.unmap();
     }
-}
 
-#[derive(Debug, Copy, Clone)]
-pub struct BufferSlice<'a, T: BufferType> {
-    buffer: &'a Buffer<T>,
-    slice: wgpu::BufferSlice<'a>,
-    _phantom: PhantomData<&'a T>,
-}
-
-impl<'a, T: BufferType> BufferSlice<'a, T> {
-    pub fn map(&self, context: &Context) -> BufferView<'a, T> {
-        self.try_map(context).unwrap()
-    }
-
-    pub fn try_map(&self, context: &Context) -> Option<BufferView<'a, T>> {
-        if !self.buffer.usage.contains(wgpu::BufferUsages::MAP_READ) {
-            return None;
-        }
-
-        let (sndr, rcvr) = oneshot::channel();
-        self.slice
-            .map_async(wgpu::MapMode::Read, move |status| match sndr.send(status) {
-                Err(_) => log::error!("Could not send map_async result."),
-                _ => {}
-            });
-        context.device().poll(wgpu::MaintainBase::Wait);
-        smol::block_on(rcvr).ok()?.ok()?;
-
-        Some(BufferView {
-            // NOTE: This will throw if map_async failed.
-            view: self.slice.get_mapped_range(),
-            _phantom: PhantomData,
-        })
-    }
-
-    pub fn map_mut(&self, context: &Context) -> BufferViewMut<'a, T> {
-        self.try_map_mut(context).unwrap()
-    }
-
-    pub fn try_map_mut(&self, context: &Context) -> Option<BufferViewMut<'a, T>> {
-        if !self.buffer.usage.contains(wgpu::BufferUsages::MAP_WRITE) {
-            return None;
-        }
-
-        let (sndr, rcvr) = oneshot::channel();
-        self.slice.map_async(wgpu::MapMode::Write, move |status| {
-            match sndr.send(status) {
-                Err(_) => log::error!("Could not send map_async result."),
-                _ => {}
-            }
-        });
-        context.device().poll(wgpu::MaintainBase::Wait);
-        smol::block_on(rcvr).ok()?.ok()?;
-
-        Some(BufferViewMut {
-            // NOTE: This will throw if map_async failed.
-            view: self.slice.get_mapped_range_mut(),
-            _phantom: PhantomData,
-        })
+    pub fn get_resource(&self) -> wgpu::BindingResource {
+        self.buffer.as_entire_binding()
     }
 }
-
-#[derive(Debug)]
-pub struct BufferView<'a, T: BufferType> {
-    view: wgpu::BufferView<'a>,
-    _phantom: PhantomData<&'a T>,
-}
-
-impl<T: BufferType> BufferView<'_, T> {
-    fn try_deref(&self) -> Result<&[T], bytemuck::PodCastError> {
-        try_cast_slice(self.view.deref())
-    }
-}
-
-impl<T: BufferType> Deref for BufferView<'_, T> {
-    type Target = [T];
-
-    fn deref(&self) -> &Self::Target {
-        self.try_deref().unwrap()
-    }
-}
-
-#[derive(Debug)]
-pub struct BufferViewMut<'a, T: BufferType> {
-    view: wgpu::BufferViewMut<'a>,
-    _phantom: PhantomData<&'a mut T>,
-}
-
-impl<T: BufferType> BufferViewMut<'_, T> {
-    fn try_deref(&self) -> Result<&[T], bytemuck::PodCastError> {
-        try_cast_slice(self.view.deref())
-    }
-
-    fn try_deref_mut(&mut self) -> Result<&mut [T], bytemuck::PodCastError> {
-        try_cast_slice_mut(self.view.deref_mut())
-    }
-}
-
-impl<T: BufferType> Deref for BufferViewMut<'_, T> {
-    type Target = [T];
-
-    fn deref(&self) -> &Self::Target {
-        self.try_deref().unwrap()
-    }
-}
-
-impl<T: BufferType> DerefMut for BufferViewMut<'_, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.try_deref_mut().unwrap()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::backend::{buffers::Buffer, device::Context};
-
-    use super::CopyInfo;
 
     #[test]
     fn test_map() {
@@ -302,9 +240,9 @@ mod tests {
             x.size(),
         );
 
-        x.copy_to(&context, &y, CopyInfo { first_start: 0, second_start: 0, size: x.size() });
+        x.copy_to(&context, .., &mut y, ..);
         let y_read = y.slice(..).map(&context);
-        
+
         assert_eq!(&vec, &*y_read);
 
         drop(y_read);
@@ -324,9 +262,9 @@ mod tests {
             x.size(),
         );
 
-        x.copy_to(&context, &y, CopyInfo { first_start: 0, second_start: 0, size: x.size() });
+        x.copy_to(&context, .., &mut y, ..);
         let y_read = y.slice(..).map(&context);
-        
+
         assert_eq!(&vec, &*y_read);
 
         drop(y_read);

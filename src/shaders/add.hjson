@@ -1,0 +1,56 @@
+[
+    {
+        "binding": 0,
+        "visibility": {
+            "compute": true,
+            "vertex": false,
+            "fragment": false
+        },
+        "ty": {
+            "Buffer": {
+                "ty": {
+                    "Storage": {
+                        "read_only": true
+                    }
+                },
+                "has_dynamic_offset": false,
+            }
+        }
+    },
+    {
+        "binding": 1,
+        "visibility": {
+            "compute": true,
+            "vertex": false,
+            "fragment": false
+        },
+        "ty": {
+            "Buffer": {
+                "ty": {
+                    "Storage": {
+                        "read_only": true
+                    }
+                },
+                "has_dynamic_offset": false
+            }
+        }
+    },
+    {
+        "binding": 2,
+        "visibility": {
+            "compute": true,
+            "vertex": false,
+            "fragment": false
+        },
+        "ty": {
+            "Buffer": {
+                "ty": {
+                    "Storage": {
+                        "read_only": false
+                    }
+                },
+                "has_dynamic_offset": false
+            }
+        }
+    }
+]

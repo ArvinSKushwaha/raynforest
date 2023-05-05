@@ -8,7 +8,10 @@ impl Context {
         let request_device = async {
             let instance = wgpu::Instance::new(Default::default());
 
-            let adapter = instance.request_adapter(&Default::default()).await?;
+            let adapter = instance.request_adapter(&wgpu::RequestAdapterOptionsBase{
+                // power_preference: wgpu::PowerPreference::HighPerformance,
+                ..Default::default()
+            }).await?;
 
             adapter.request_device(&Default::default(), None).await.ok()
         };
