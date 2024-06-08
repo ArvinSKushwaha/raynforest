@@ -5,7 +5,7 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Rust version ${{ matrix.rust }}
         uses: dtolnay/rust-toolchain@master
@@ -68,10 +68,12 @@ jobs:
       matrix:
         include:
           - backends: dx12
-            os: windows-latest
+            os: windows-2022
           - backends: vulkan gl
             os: ubuntu-latest
-        os: [ubuntu-latest, windows-latest]
+          - backends: metal
+            os: macos-latest
+        os: [ubuntu-latest, windows-2022, macos-latest]
         rust: [stable, beta, nightly]
 
 name: Rust
