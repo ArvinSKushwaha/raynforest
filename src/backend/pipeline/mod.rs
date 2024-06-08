@@ -89,14 +89,16 @@ mod tests {
             },
         );
 
-        let layout = pipeline.get_layout();
-        let layout = layout.as_ref().expect("Could not get layout. Not initialized?");
+        let layout = pipeline
+            .get_layout()
+            .expect("Could not get layout. Not initialized?");
 
         let add_desc = wgpu::ComputePipelineDescriptor {
             label: None,
             layout: Some(&layout),
             module: &add_module,
             entry_point: "add",
+            compilation_options: Default::default(),
         };
 
         pipeline.pipeline(&context, &add_desc);

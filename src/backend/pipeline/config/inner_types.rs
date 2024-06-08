@@ -195,7 +195,6 @@ pub enum TextureFormat {
     Bc5RgUnorm,
     Bc5RgSnorm,
     Bc6hRgbUfloat,
-    Bc6hRgbSfloat,
     Bc7RgbaUnorm,
     Bc7RgbaUnormSrgb,
     Etc2Rgb8Unorm,
