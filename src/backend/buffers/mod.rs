@@ -12,11 +12,7 @@ mod err;
 mod slice;
 mod view;
 
-pub use self::{
-    err::{BufferCopyError, BufferMappingError},
-    slice::BufferSlice,
-    view::{BufferView, BufferViewMut}
-};
+pub use self::{err::BufferCopyError, slice::BufferSlice};
 
 #[derive(Debug)]
 pub struct Buffer<T: BufferType> {
@@ -61,7 +57,7 @@ impl<T: BufferType> Buffer<T> {
 
     pub fn slice(&self, range: impl RangeBounds<u64>) -> BufferSlice<T> {
         BufferSlice {
-            buffer: &self,
+            buffer: self,
             slice: self.buffer.slice(range),
             _phantom: PhantomData,
         }

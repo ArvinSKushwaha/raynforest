@@ -1,7 +1,6 @@
-use bytemuck::{Zeroable, Pod};
+use bytemuck::{Pod, Zeroable};
 
 pub trait BufferType: Zeroable + Pod + 'static {}
-
 
 impl BufferType for u8 {}
 impl BufferType for u16 {}

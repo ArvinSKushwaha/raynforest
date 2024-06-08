@@ -1,5 +1,3 @@
-// vi: ft=wgsl
-
 struct Matrix {
     size: vec2<u32>,
     numbers: array<f32>

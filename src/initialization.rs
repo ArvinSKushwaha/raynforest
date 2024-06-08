@@ -21,4 +21,4 @@ where
         .unwrap_or(default)
 }
 
-pub(crate) const GLOBAL_CONTEXT: Lazy<GlobalContext> = Lazy::new(|| GlobalContext {});
+pub(crate) static GLOBAL_CONTEXT: Lazy<GlobalContext> = Lazy::new(|| GlobalContext {});

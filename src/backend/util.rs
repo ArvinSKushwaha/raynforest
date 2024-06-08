@@ -14,7 +14,7 @@ impl<T: BufferType> Lengthed for Buffer<T> {
 
 impl<T> Lengthed for &[T] {
     fn len(&self) -> usize {
-        <[T]>::len(&self)
+        <[T]>::len(self)
     }
 }
 
@@ -42,7 +42,7 @@ pub fn materialize(b: impl RangeBounds<usize>, a: &impl Lengthed) -> Materialize
 
     let start = match b.start_bound() {
         std::ops::Bound::Included(a) => start.max(*a),
-        std::ops::Bound::Excluded(b) => start.max(*b + 1),
+        std::ops::Bound::Excluded(b) => start.max(*b + 1), // watch out for overflow in the future
         std::ops::Bound::Unbounded => start,
     };
 
@@ -50,7 +50,7 @@ pub fn materialize(b: impl RangeBounds<usize>, a: &impl Lengthed) -> Materialize
         std::ops::Bound::Included(a) => end.min(*a),
         std::ops::Bound::Excluded(b) => {
             if *b == 0 {
-                log::warn!("Encountered RangeBounds with end_bound: Excluded(0)")
+                log::error!("Encountered RangeBounds with end_bound: Excluded(0)")
             }
             end.min(*b - 1)
         }

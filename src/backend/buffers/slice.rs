@@ -34,16 +34,16 @@ impl<'a, T: BufferType> BufferSlice<'a, T> {
         }
 
         let (sndr, rcvr) = oneshot::channel();
-        self.slice
-            .map_async(wgpu::MapMode::Read, move |status| match sndr.send(status) {
-                Err(_) => log::error!("Could not send map_async result."),
-                _ => {}
-            });
+        self.slice.map_async(wgpu::MapMode::Read, move |status| {
+            if sndr.send(status).is_err() {
+                log::error!("Could not send map_async result.")
+            }
+        });
         context.device().poll(wgpu::MaintainBase::Wait);
         smol::block_on(rcvr)??;
 
         Ok(BufferView {
-            // NOTE: This will throw if map_async failed.
+            // NOTE: This will panic if map_async failed.
             view: self.slice.get_mapped_range(),
             _phantom: PhantomData,
         })
@@ -69,9 +69,8 @@ impl<'a, T: BufferType> BufferSlice<'a, T> {
 
         let (sndr, rcvr) = oneshot::channel();
         self.slice.map_async(wgpu::MapMode::Write, move |status| {
-            match sndr.send(status) {
-                Err(_) => log::error!("Could not send map_async result."),
-                _ => {}
+            if sndr.send(status).is_err() {
+                log::error!("Could not send map_async result.")
             }
         });
         context.device().poll(wgpu::MaintainBase::Wait);
@@ -84,4 +83,3 @@ impl<'a, T: BufferType> BufferSlice<'a, T> {
         })
     }
 }
-
