@@ -106,8 +106,8 @@ mod tests {
         let pipeline = pipeline.get_pipeline();
         let pipeline = pipeline.expect("Could not get pipeline. Not initialized?");
 
-        let x_vec = vec![f32::from_bits(2), f32::from_bits(2), 1., 2., 3., 4.];
-        let y_vec = vec![f32::from_bits(2), f32::from_bits(2), 3., 1., 6., 2.];
+        let x_vec = vec![f32::from_bits(4), f32::from_bits(1), 1., 2., 3., 4.];
+        let y_vec = vec![f32::from_bits(4), f32::from_bits(1), 3., 1., 6., 2.];
 
         let x = Buffer::from_vec(&context, Use::STORAGE, x_vec);
         let y = Buffer::from_vec(&context, Use::STORAGE, y_vec);
@@ -149,6 +149,9 @@ mod tests {
 
         z.copy_to(&context, .., &mut w, ..);
 
-        assert_eq!(w.slice(..).map(&context).to_vec(), vec![f32::from_bits(2), f32::from_bits(2), 4., 3., 9., 6.]);
+        assert_eq!(
+            w.slice(..).map(&context).to_vec(),
+            vec![f32::from_bits(4), f32::from_bits(1), 4., 3., 9., 6.]
+        );
     }
 }
