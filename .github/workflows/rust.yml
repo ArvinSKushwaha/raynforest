@@ -18,7 +18,7 @@ jobs:
           tool: cargo-nextest,cargo-llvm-cov
 
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v2.2.1
+        uses: Swatinem/rust-cache@v2.7.3
 
         # https://github.com/gfx-rs/wgpu/blob/110e62aed255777ac635a504ec81029483065be8/.github/workflows/ci.yml#L216
       - if: matrix.os == 'ubuntu-latest'
@@ -59,7 +59,7 @@ jobs:
         shell: bash
 
       - name: Upload coverage report to codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           files: lcov.info
 
@@ -69,11 +69,12 @@ jobs:
         include:
           - backends: dx12
             os: windows-2022
+            rust: stable
           - backends: vulkan gl
             os: ubuntu-latest
           - backends: metal
             os: macos-latest
-        os: [ubuntu-latest, windows-2022, macos-latest]
+        os: [ubuntu-latest, macos-latest]
         rust: [stable, beta, nightly]
 
 name: Rust
